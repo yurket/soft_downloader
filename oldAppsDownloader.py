@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-from os import getcwd
-from sys import argv
+from os import mkdir, chdir, path
+from sys import argv, exit
 
 import urllib2
 
@@ -53,7 +53,17 @@ class OldAppsDownloader():
 
 
 if __name__ == '__main__':
-    downloader = OldAppsDownloader('http://www.oldapps.com/camfrog.php?old_camfrog=')
+    if len(argv) != 3:
+        print('usage: OldAppsDownloader.py dir_name url')
+        exit(1)
+
+    target_dir, url = argv[1], argv[2]
+
+    if not path.exists(target_dir):
+        mkdir(target_dir)
+    chdir(target_dir)
+
+    downloader = OldAppsDownloader(url)
     downloader.find_files_urls()
     downloader.download_files()
 
