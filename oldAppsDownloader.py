@@ -2,17 +2,30 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-from os import mkdir, chdir, path
-from sys import argv, exit
-
+import os
+import sys
 import urllib2
 
 from sd import LinksCollector, DBG
 
+ENABLE_LOGGINING = True
+LOG_NAME = None
+
+def Log(msg):
+    global LOG_NAME
+    if LOG_NAME is None:
+        LOG_NAME = os.path.dirname(__file__) + os.sep + "log.txt"
+        print('logname: %s' % LOG_NAME)
+    if ENABLE_LOGGINING:
+        print(msg)
+        with open(LOG_NAME, 'ab') as f:
+            f.write(msg)
+
 class OldAppsDownloader():
     """Works only with oldapps.com. Just goes through the links and try to download files
     expects on input url kindof http://www.oldapps.com/nokia_suite.php?old_nokia_pc_suite= """
-    MAX_ID = 10
+    MAX_ID = 50
+    DATA_CHUNK_SIZE = 2**19     # 512 KB
     targets = dict()
     def __init__(self, url):
         self.start_url = url
@@ -30,6 +43,8 @@ class OldAppsDownloader():
             try:
                 reply = urllib2.urlopen(url)
             except urllib2.HTTPError:
+                if id_counter % (self.MAX_ID/5) == 0:
+                    Log('checking id ' + str(id_counter) + '\n')
                 continue
             parser = LinksCollector()
             parser.feed(reply.read())
@@ -38,31 +53,42 @@ class OldAppsDownloader():
 
     def download_files(self):
         if not self.targets:
-            print('no files coolected in this ID range!')
+            Log('no files coolected in this ID range!')
             return 0
-        print(self.targets)
+
+        Log(self.__repr__())
         for url, name in self.targets.iteritems():
-            with open(name + '.bin', "wb") as f:
-                try:
-                    reply = urllib2.urlopen(url)
-                except Exception, e:
-                    print(e)
-                f.write(reply.read())
+            filename = name + '.bin'
+            if not os.path.exists(filename):
+                with open(filename, "wb") as f:
+                    try:
+                        reply = urllib2.urlopen(url)
+                        while True:
+                            data = reply.read(self.DATA_CHUNK_SIZE)
+                            if data == '':
+                                break
+                            f.write(data)
+                    except Exception, e:
+                        print(e)
 
-
+    def __repr__(self):
+        repr_str = 'files for downloading:\n'
+        for k, v in self.targets.iteritems():
+            repr_str += '\t%s: %s\n' % (k,v)
+        return repr_str
 
 
 if __name__ == '__main__':
-    if len(argv) != 3:
+    if len(sys.argv) != 3:
         print('usage: OldAppsDownloader.py dir_name url')
-        exit(1)
+        sys.exit(1)
+    target_dir, url = sys.argv[1], sys.argv[2]
 
-    target_dir, url = argv[1], argv[2]
+    if not os.path.exists(target_dir):
+        os.mkdir(target_dir)
+    os.chdir(target_dir)
 
-    if not path.exists(target_dir):
-        mkdir(target_dir)
-    chdir(target_dir)
-
+    # url = 'http://www.oldapps.com/nokia_suite.php?old_nokia_pc_suite=1?download'
     downloader = OldAppsDownloader(url)
     downloader.find_files_urls()
     downloader.download_files()

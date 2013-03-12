@@ -16,6 +16,7 @@ def DBG(m1, arg):
     if DEBUG_MODE:
         print("__DBG: %r : %r" %(m1,arg))
 
+
 class LinksCollector(HTMLParser):
     links = dict()
     a_tag_encounered = False
@@ -49,26 +50,28 @@ class LinksCollector(HTMLParser):
 
     def __repr__(self):
         info = 'All collected links: \n'
-        for key in self.links.keys():
-            info += '\t%r: %r\n' % (key, self.links[key])
-        # for x in self.links:
-        #     info += '%r\n' % x
+        for key, val in self.links.iteritems():
+            info += '\t%r: %r\n' % (key, val)
         return info
 
 
 class WebSite():
-    def __init__(self, url):
-        self.url = url
-        try:
-            self.body = urllib2.urlopen(self.url).read()
-        except Exception, e:
-            print(e)
-            self.body = ''
-        
+    """An abstract class for such types of sites, which provide id and software version correspondence.
+   '/download_google_chrome/13800/': 'Google Chrome 24.0.1312.27 Beta'
+   '/download_google_chrome/14397/': 'Google Chrome 25.0.1364.97' and so on."""
+    MAX_ID = 100
+    DATA_CHUNK_SIZE = 2**19             # 512 KB
+    targets = dict()
 
-    def get_all_links(self):
-        pass
+    def __init__(self, url, download_trait):
+        self.start_url = url
         
+    def find_app_link(self, d):
+        pass
+
+    def download_files(self):
+        pass
+
     def __repr__(self):
         return "site body:" + str(self.body)
 
@@ -84,15 +87,7 @@ class SoftDownloader:
         pass
 
         
-
-
-def main():
-    parser = LinksCollector()
-    parser.feed(urllib2.urlopen('http://www.oldapps.com/nokia_suite.php?old_nokia_pc_suite=1?download').read())
-    print(parser)
-
-
-
-
 if __name__ == '__main__':
-    main()
+    parser = LinksCollector()
+    parser.feed(urllib2.urlopen('http://www.filehippo.com/download_google_chrome/4615').read())
+    print(parser)
