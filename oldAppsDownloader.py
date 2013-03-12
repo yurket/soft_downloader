@@ -13,6 +13,8 @@ from sd import LinksCollector, DBG
 
 class MyLogger():
     LOGGINING_ENABLE = True
+    LOG_LOCK = threading.Lock()
+
     def __init__(self, logname = "log.txt"):
         self.LOG_NAME = os.path.dirname(__file__) + os.sep + logname
         if os.path.exists(self.LOG_NAME):
@@ -21,10 +23,14 @@ class MyLogger():
 
     def Log(self, msg):
         if self.LOGGINING_ENABLE:
-            msg = str(time.strftime("%H:%M:%S")) + ' - ' + msg 
+            msg = str(time.strftime("%H:%M:%S")) + ' - ' + msg
+
+            # self.LOG_LOCK.acquire()
             print(msg)
             with open(self.LOG_NAME, 'ab') as f:
-                f.write(msg)
+                f.write(msg + '\n')
+                f.flush()
+            # self.LOG_LOCK.release()
 
     def pause_logging(self):
         self.LOGGINING_ENABLE = False
@@ -60,26 +66,36 @@ class OldAppsDownloader():
             try:
                 reply = urllib2.urlopen(url)
             except urllib2.HTTPError:
-                if id_counter % (self.MAX_ID/5) == 0:
-                    self.logger.Log('checking id ' + str(id_counter))
+                if id_counter % (self.MAX_ID/10) == 0:
+                    self.logger.Log('checking id ' + str(id_counter) + ', found links: ' + str(len(self.targets)))
                 continue
             parser = LinksCollector()
             parser.feed(reply.read())
             file_info = self.find_app_link(parser.get_links_dict())
 
-            self.TARGETS_LOCK.acquire()
+            # self.TARGETS_LOCK.acquire()
             self.targets.update(file_info)
-            self.TARGETS_LOCK.release()
+            # self.TARGETS_LOCK.release()
 
-    def downloader(self):
-        time.sleep(5)
-        worker = threading.Thread(target=self.download_files())
+    def run_downloader(self):
+        threading.Thread(target=self.find_files_urls).start()
+        
+        while threading.active_count() > 1:             # self.find_files_urls() is working
+            self.logger.Log(str(threading.active_count()) + ' threads running now')
+            thread_num = threading.active_count()
+            if thread_num < 6:
+                self.logger.Log('starting another thread.')
+                threading.Thread(target=self.download_files).start()
+            time.sleep(120)
+        threading.Thread(target=self.download_files).start()            # last check
 
     def download_files(self):
         if len(self.targets) == 0:
+            self.logger.Log(__name__ + 'Nothing to do...')
             return 0
 
         self.logger.Log(self.__repr__())
+        self.logger.Log(__name__ + ' Start donwloading')
         while len(self.targets) > 0:
             self.TARGETS_LOCK.acquire()
             url, name = self.targets.popitem()
@@ -97,8 +113,6 @@ class OldAppsDownloader():
                             f.write(data)
                     except Exception, e:
                         print(e)
-
-
 
     def __repr__(self):
         repr_str = 'files for downloading:\n'
@@ -118,7 +132,6 @@ if __name__ == '__main__':
     os.chdir(target_dir)
 
     downloader = OldAppsDownloader(url)
-    downloader.find_files_urls()
-    downloader.downloader()
+    downloader.run_downloader()
 
 
