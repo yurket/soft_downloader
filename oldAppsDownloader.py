@@ -5,21 +5,32 @@ from __future__ import print_function
 import os
 import sys
 import urllib2
+import shutil
 
 from sd import LinksCollector, DBG
 
-ENABLE_LOGGINING = True
-LOG_NAME = None
+class MyLogger():
+    LOGGINING_ENABLE = True
+    def __init__(self, logname = "log.txt"):
+        self.LOG_NAME = os.path.dirname(__file__) + os.sep + logname
+        if os.path.exists(self.LOG_NAME):
+            shutil.move(self.LOG_NAME, self.LOG_NAME + '.old')
+        print('logname: %s' % self.LOG_NAME)
 
-def Log(msg):
-    global LOG_NAME
-    if LOG_NAME is None:
-        LOG_NAME = os.path.dirname(__file__) + os.sep + "log.txt"
-        print('logname: %s' % LOG_NAME)
-    if ENABLE_LOGGINING:
-        print(msg)
-        with open(LOG_NAME, 'ab') as f:
-            f.write(msg)
+    def Log(self, msg):
+        if self.LOGGINING_ENABLE:
+            print(msg)
+            with open(self.LOG_NAME, 'ab') as f:
+                f.write(msg)
+
+    def pause_logging(self):
+        self.LOGGINING_ENABLE = False
+    def resume_logging(self):
+        self.LOGGINING_ENABLE = True
+
+    def __repr__(self):
+        return self
+
 
 class OldAppsDownloader():
     """Works only with oldapps.com. Just goes through the links and try to download files
@@ -29,6 +40,7 @@ class OldAppsDownloader():
     targets = dict()
     def __init__(self, url):
         self.start_url = url
+        self.logger = MyLogger()
         
     def find_app_link(self, d):
         for url in d.iterkeys():
@@ -44,7 +56,7 @@ class OldAppsDownloader():
                 reply = urllib2.urlopen(url)
             except urllib2.HTTPError:
                 if id_counter % (self.MAX_ID/5) == 0:
-                    Log('checking id ' + str(id_counter) + '\n')
+                    self.logger.Log('checking id ' + str(id_counter))
                 continue
             parser = LinksCollector()
             parser.feed(reply.read())
@@ -53,10 +65,10 @@ class OldAppsDownloader():
 
     def download_files(self):
         if not self.targets:
-            Log('no files coolected in this ID range!')
+            self.logger.Log('no files coolected in this ID range!')
             return 0
 
-        Log(self.__repr__())
+        self.logger.Log(self.__repr__())
         for url, name in self.targets.iteritems():
             filename = name + '.bin'
             if not os.path.exists(filename):
