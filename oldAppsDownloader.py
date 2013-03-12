@@ -6,6 +6,8 @@ import os
 import sys
 import urllib2
 import shutil
+import threading
+import time
 
 from sd import LinksCollector, DBG
 
@@ -19,6 +21,7 @@ class MyLogger():
 
     def Log(self, msg):
         if self.LOGGINING_ENABLE:
+            msg = str(time.strftime("%H:%M:%S")) + ' - ' + msg 
             print(msg)
             with open(self.LOG_NAME, 'ab') as f:
                 f.write(msg)
@@ -38,6 +41,8 @@ class OldAppsDownloader():
     MAX_ID = 50
     DATA_CHUNK_SIZE = 2**19     # 512 KB
     targets = dict()
+    TARGETS_LOCK = threading.Lock()
+
     def __init__(self, url):
         self.start_url = url
         self.logger = MyLogger()
@@ -61,15 +66,25 @@ class OldAppsDownloader():
             parser = LinksCollector()
             parser.feed(reply.read())
             file_info = self.find_app_link(parser.get_links_dict())
+
+            self.TARGETS_LOCK.acquire()
             self.targets.update(file_info)
+            self.TARGETS_LOCK.release()
+
+    def downloader(self):
+        time.sleep(5)
+        worker = threading.Thread(target=self.download_files())
 
     def download_files(self):
-        if not self.targets:
-            self.logger.Log('no files coolected in this ID range!')
+        if len(self.targets) == 0:
             return 0
 
         self.logger.Log(self.__repr__())
-        for url, name in self.targets.iteritems():
+        while len(self.targets) > 0:
+            self.TARGETS_LOCK.acquire()
+            url, name = self.targets.popitem()
+            self.TARGETS_LOCK.release()
+
             filename = name + '.bin'
             if not os.path.exists(filename):
                 with open(filename, "wb") as f:
@@ -82,6 +97,8 @@ class OldAppsDownloader():
                             f.write(data)
                     except Exception, e:
                         print(e)
+
+
 
     def __repr__(self):
         repr_str = 'files for downloading:\n'
@@ -100,9 +117,8 @@ if __name__ == '__main__':
         os.mkdir(target_dir)
     os.chdir(target_dir)
 
-    # url = 'http://www.oldapps.com/nokia_suite.php?old_nokia_pc_suite=1?download'
     downloader = OldAppsDownloader(url)
     downloader.find_files_urls()
-    downloader.download_files()
+    downloader.downloader()
 
 

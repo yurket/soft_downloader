@@ -42,11 +42,9 @@ class LinksCollector(HTMLParser):
             self.links.update({self.current_a_href: data})
             DBG('\t updating with data %s', data)
 
-
     def handle_endtag(self, tag):
         if tag == 'a':
             self.a_tag_encounered = False
-
 
     def __repr__(self):
         info = 'All collected links: \n'
