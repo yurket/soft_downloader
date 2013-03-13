@@ -25,12 +25,12 @@ class MyLogger():
         if self.LOGGINING_ENABLE:
             msg = str(time.strftime("%H:%M:%S")) + ' - ' + msg
 
-            # self.LOG_LOCK.acquire()
+            self.LOG_LOCK.acquire()
             print(msg)
             with open(self.LOG_NAME, 'ab') as f:
                 f.write(msg + '\n')
                 f.flush()
-            # self.LOG_LOCK.release()
+            self.LOG_LOCK.release()
 
     def pause_logging(self):
         self.LOGGINING_ENABLE = False
@@ -44,12 +44,14 @@ class MyLogger():
 class OldAppsDownloader():
     """Works only with oldapps.com. Just goes through the links and try to download files
     expects on input url kindof http://www.oldapps.com/nokia_suite.php?old_nokia_pc_suite= """
-    MAX_ID = 50
+    START_ID = 1
+    MAX_ID = 100
     DATA_CHUNK_SIZE = 2**19     # 512 KB
     targets = dict()
     TARGETS_LOCK = threading.Lock()
 
-    def __init__(self, url):
+    def __init__(self, url, start_id = 1):
+        self.START_ID = start_id
         self.start_url = url
         self.logger = MyLogger()
         
@@ -60,19 +62,23 @@ class OldAppsDownloader():
         return None
 
     def find_files_urls(self):
-        for id_counter in xrange(1, self.MAX_ID):
+        for id_counter in xrange(self.START_ID, self.MAX_ID):
             url = self.start_url + str(id_counter) + '?download'
             DBG('url: ', url)
             try:
                 reply = urllib2.urlopen(url)
             except urllib2.HTTPError:
-                if id_counter % (self.MAX_ID/10) == 0:
-                    self.logger.Log('checking id ' + str(id_counter) + ', found links: ' + str(len(self.targets)))
+                if id_counter % (self.MAX_ID/100) == 0:
+                    self.logger.Log('checking id ' + str(id_counter))
                 continue
             parser = LinksCollector()
-            parser.feed(reply.read())
+            try:
+                parser.feed(reply.read())
+            except HTMLParser.HTMLParseError as exc:
+                Log(exc.msg)
             file_info = self.find_app_link(parser.get_links_dict())
-
+            if file_info is None:
+                return
             # self.TARGETS_LOCK.acquire()
             self.targets.update(file_info)
             # self.TARGETS_LOCK.release()
@@ -122,16 +128,23 @@ class OldAppsDownloader():
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
-        print('usage: OldAppsDownloader.py dir_name url')
+    if len(sys.argv) < 3:
+        print('usage: OldAppsDownloader.py dir_name url [start_id]')
         sys.exit(1)
+
     target_dir, url = sys.argv[1], sys.argv[2]
+
+    if len(sys.argv) > 3:
+        start_id = sys.argv[3]
+    else:
+        start_id = 1
 
     if not os.path.exists(target_dir):
         os.mkdir(target_dir)
     os.chdir(target_dir)
 
-    downloader = OldAppsDownloader(url)
+    downloader = OldAppsDownloader(url, start_id)
+    downloader.logger.Log('starting with id ' + str(start_id))
     downloader.run_downloader()
-
-
+    downloader.logger.Log('============================================================================================')
+    downloader.logger.Log('finished!')
