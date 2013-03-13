@@ -8,7 +8,7 @@ import urllib2
 import shutil
 import threading
 import time
-
+import HTMLParser
 from sd import LinksCollector, DBG
 
 class MyLogger():
@@ -25,12 +25,10 @@ class MyLogger():
         if self.LOGGINING_ENABLE:
             msg = str(time.strftime("%H:%M:%S")) + ' - ' + msg
 
-            self.LOG_LOCK.acquire()
             print(msg)
             with open(self.LOG_NAME, 'ab') as f:
                 f.write(msg + '\n')
                 f.flush()
-            self.LOG_LOCK.release()
 
     def pause_logging(self):
         self.LOGGINING_ENABLE = False
@@ -45,7 +43,7 @@ class OldAppsDownloader():
     """Works only with oldapps.com. Just goes through the links and try to download files
     expects on input url kindof http://www.oldapps.com/nokia_suite.php?old_nokia_pc_suite= """
     START_ID = 1
-    MAX_ID = 100
+    MAX_ID = 50000
     DATA_CHUNK_SIZE = 2**19     # 512 KB
     targets = dict()
     TARGETS_LOCK = threading.Lock()
@@ -75,7 +73,8 @@ class OldAppsDownloader():
             try:
                 parser.feed(reply.read())
             except HTMLParser.HTMLParseError as exc:
-                Log(exc.msg)
+                self.logger.Log('[!] bad id: ' + str(id_counter))
+                self.logger.Log(exc.msg)
             file_info = self.find_app_link(parser.get_links_dict())
             if file_info is None:
                 return
@@ -106,6 +105,7 @@ class OldAppsDownloader():
             self.TARGETS_LOCK.acquire()
             url, name = self.targets.popitem()
             self.TARGETS_LOCK.release()
+            # time.sleep(1)       # preserve starvation?
 
             filename = name + '.bin'
             if not os.path.exists(filename):
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     target_dir, url = sys.argv[1], sys.argv[2]
 
     if len(sys.argv) > 3:
-        start_id = sys.argv[3]
+        start_id = int(sys.argv[3])
     else:
         start_id = 1
 

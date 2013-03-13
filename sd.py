@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-from sys import argv
-
+import sys
+import os
+import shutil
+import time
 from HTMLParser import HTMLParser, HTMLParseError
 
 import urllib2
-import urlparse
 import pickle
 
 DEBUG_MODE = False
@@ -16,6 +17,31 @@ def DBG(m1, arg):
     if DEBUG_MODE:
         print("__DBG: %r : %r" %(m1,arg))
 
+class MyLogger():
+    LOGGINING_ENABLE = True
+
+    def __init__(self, logname = "log.txt"):
+        self.LOG_NAME = os.path.dirname(__file__) + os.sep + logname
+        if os.path.exists(self.LOG_NAME):
+            shutil.move(self.LOG_NAME, self.LOG_NAME + '.old')
+        print('logname: %s' % self.LOG_NAME)
+
+    def Log(self, msg):
+        if self.LOGGINING_ENABLE:
+            msg = str(time.strftime("%H:%M:%S")) + ' - ' + msg
+
+            print(msg)
+            with open(self.LOG_NAME, 'ab') as f:
+                f.write(msg + '\n')
+                f.flush()
+
+    def pause_logging(self):
+        self.LOGGINING_ENABLE = False
+    def resume_logging(self):
+        self.LOGGINING_ENABLE = True
+
+    def __repr__(self):
+        return self
 
 class LinksCollector(HTMLParser):
     links = dict()
@@ -62,12 +88,10 @@ class LinksCollector(HTMLParser):
         return info
 
 
-class WebSite():
+class WebSite:
     """An abstract class for such types of sites, which provide id and software version correspondence.
    '/download_google_chrome/13800/': 'Google Chrome 24.0.1312.27 Beta'
    '/download_google_chrome/14397/': 'Google Chrome 25.0.1364.97' and so on."""
-    MAX_ID = 100
-    DATA_CHUNK_SIZE = 2**19             # 512 KB
     links_to_files = dict()
 
     def __init__(self, url, download_page_trait, file_link_trait):
@@ -109,20 +133,57 @@ class WebSite():
 
 
 class SoftDownloader:
-    def __init__(self, url, save_dir = '.'):
-        self.site = WebSite(url)
+    DATA_CHUNK_SIZE = 2**19             # 512 KB
+
+    def __init__(self, site, save_dir = '.'):
+        self.site = site
         self.save_dir = save_dir
+        self.logger = MyLogger()
 
     def set_save_dir(new_save_dir):
         self.save_dir = new_save_dir
 
-    def download():
-        pass
+    def download_files(self, targets = None):
+        if targets == None:
+            targets = self.site.get_links_to_files()
 
-        
-if __name__ == '__main__': 
+        if len(targets) == 0:
+            self.logger.Log(__name__ + 'Nothing to do...')
+            return 0
 
-    old_apps = WebSite('http://www.oldapps.com/google_chrome.php', '?download', 'app=')
+        self.logger.Log(__name__ + ' Start donwloading')
+        for url, name in targets.iteritems():
+            filename = name + '.bin'
+            if not os.path.exists(filename):
+                with open(filename, "wb") as f:
+                    try:
+                        reply = urllib2.urlopen(url)
+                        while True:
+                            data = reply.read(self.DATA_CHUNK_SIZE)
+                            if data == '':
+                                break
+                            f.write(data)
+                    except Exception, e:
+                        print(e)
+
+    def __repr__(self):
+        return __name__
+
+
+if __name__ == '__main__':
+    if len(sys.argv) < 5:
+        print('usage: sd.py dir_name url 1st_trait 2nd_trait ')
+        print('for example: sd.py chrome http://www.oldapps.com/google_chrome.php ?download app=')
+        sys.exit(1)
+
+    target_dir, url, trait1, trait2 = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+
+    if not os.path.exists(target_dir):
+        os.mkdir(target_dir)
+    os.chdir(target_dir)
+
+    # old_apps = WebSite('http://www.oldapps.com/google_chrome.php', '?download', 'app=')
+    old_apps = WebSite(url, trait1, trait2)
     old_apps.collect_links_to_files()
-    print(old_apps)
-    old_apps.dump_links_to_files()
+
+    sd = SoftDownloader(old_apps).download_files()
