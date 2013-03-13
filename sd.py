@@ -68,7 +68,6 @@ class WebSite():
    '/download_google_chrome/14397/': 'Google Chrome 25.0.1364.97' and so on."""
     MAX_ID = 100
     DATA_CHUNK_SIZE = 2**19             # 512 KB
-    download_pages = dict()
     links_to_files = dict()
 
     def __init__(self, url, download_page_trait, file_link_trait):
@@ -76,47 +75,33 @@ class WebSite():
         self.download_page_trait = download_page_trait
         self.file_link_trait = file_link_trait
 
-    def find_app_link(self, d):
-        for url in d.iterkeys():
-            if url.find('?app=') != -1:
-                return {url: d[url]}
-        return None
-
-    def collect_download_pages(self):
+    def collect_links_by_trait(self, url, trait):
         parser = LinksCollector()
         try:
-            parser.feed(urllib2.urlopen(self.start_url).read())
+            parser.feed(urllib2.urlopen(url).read())
             parser.close()
         except Exception as ex:
             print(ex)
         
         all_links = parser.get_links_dict()
+        collected = dict()
         for k,v in all_links.iteritems():
-            if k.find(self.download_page_trait) != -1:
-                self.download_pages.update({k: v})
+            if k.find(trait) != -1:
+                collected.update({k: v})
+        return collected
 
     def collect_links_to_files(self):
-        for url, name in self.download_pages.iteritems():
-            parser = LinksCollector()
-            try:
-                parser.feed(urllib2.urlopen(url).read())
-                parser.close()
-            except Exception as ex:
-                print(ex)
-            
-            all_links = parser.get_links_dict()
-            for k,v in all_links.iteritems():
-                if k.find(self.file_link_trait) != -1:
-                    self.links_to_files.update({k: v})
+        download_pages = self.collect_links_by_trait(self.start_url, self.download_page_trait)
+        for url, name in download_pages.iteritems():
+            self.links_to_files.update(self.collect_links_by_trait(url, self.file_link_trait))
 
-    def save_links_to_files(self, name = 'file_links.dump'):
+    def dump_links_to_files(self, name = 'file_links.dump'):
         pickle.dump(self.links_to_files, open(name, 'wb'))
 
-    def __repr__(self):
-        repr_str = 'download pages:\n'
-        for k, v in self.download_pages.iteritems():
-            repr_str += '\t%s: %s\n' % (k,v)
+    def get_links_to_files(self):
+        return self.links_to_files
 
+    def __repr__(self):
         repr_str = 'links to files:\n'
         for k, v in self.links_to_files.iteritems():
             repr_str += '\t%s: %s\n' % (k,v)
@@ -136,18 +121,8 @@ class SoftDownloader:
 
         
 if __name__ == '__main__': 
-    # p = LinksCollector()
-    # try:
-    #     # p.feed(urllib2.urlopen('http://www.oldapps.com/google_chrome.php').read())
-    #     with open('page.html', 'rb') as f:
-    #         p.feed(f.read())
-    #     p.close()
-    # except HTMLParseError as e:
-    #     print(e)
-    # print(p)
 
     old_apps = WebSite('http://www.oldapps.com/google_chrome.php', '?download', 'app=')
-    old_apps.collect_download_pages()
     old_apps.collect_links_to_files()
     print(old_apps)
-    old_apps.save_links_to_files()
+    old_apps.dump_links_to_files()
