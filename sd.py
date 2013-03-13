@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-from os import getcwd
 from sys import argv
 
-from HTMLParser import HTMLParser
+from HTMLParser import HTMLParser, HTMLParseError
 
 import urllib2
 import urlparse
+import pickle
 
 DEBUG_MODE = False
 
@@ -35,9 +35,11 @@ class LinksCollector(HTMLParser):
         if tag == 'a':
             self.a_tag_encounered = True
             self.current_a_href = self.get_attr_val(attrs, 'href')
+            self.links.update({self.current_a_href: ''})
             DBG('self.current_a_href', self.current_a_href)
 
     def handle_data(self, data):
+        DBG('data', data)
         if self.a_tag_encounered:
             self.links.update({self.current_a_href: data})
             DBG('\t updating with data %s', data)
@@ -45,6 +47,13 @@ class LinksCollector(HTMLParser):
     def handle_endtag(self, tag):
         if tag == 'a':
             self.a_tag_encounered = False
+
+    def handle_startendtag(self, tag, attrs):
+        DBG('handle_startendtag: tag: %s', tag)
+        DBG('attrs: %s', str(attrs))
+        if tag == 'a':
+            href = self.get_attr_val(attrs, 'href')
+            self.links.update({href: ''})
 
     def __repr__(self):
         info = 'All collected links: \n'
@@ -59,19 +68,60 @@ class WebSite():
    '/download_google_chrome/14397/': 'Google Chrome 25.0.1364.97' and so on."""
     MAX_ID = 100
     DATA_CHUNK_SIZE = 2**19             # 512 KB
-    targets = dict()
+    download_pages = dict()
+    links_to_files = dict()
 
-    def __init__(self, url, download_trait):
+    def __init__(self, url, download_page_trait, file_link_trait):
         self.start_url = url
-        
-    def find_app_link(self, d):
-        pass
+        self.download_page_trait = download_page_trait
+        self.file_link_trait = file_link_trait
 
-    def download_files(self):
-        pass
+    def find_app_link(self, d):
+        for url in d.iterkeys():
+            if url.find('?app=') != -1:
+                return {url: d[url]}
+        return None
+
+    def collect_download_pages(self):
+        parser = LinksCollector()
+        try:
+            parser.feed(urllib2.urlopen(self.start_url).read())
+            parser.close()
+        except Exception as ex:
+            print(ex)
+        
+        all_links = parser.get_links_dict()
+        for k,v in all_links.iteritems():
+            if k.find(self.download_page_trait) != -1:
+                self.download_pages.update({k: v})
+
+    def collect_links_to_files(self):
+        for url, name in self.download_pages.iteritems():
+            parser = LinksCollector()
+            try:
+                parser.feed(urllib2.urlopen(url).read())
+                parser.close()
+            except Exception as ex:
+                print(ex)
+            
+            all_links = parser.get_links_dict()
+            for k,v in all_links.iteritems():
+                if k.find(self.file_link_trait) != -1:
+                    self.links_to_files.update({k: v})
+
+    def save_links_to_files(self, name = 'file_links.dump'):
+        pickle.dump(self.links_to_files, open(name, 'wb'))
 
     def __repr__(self):
-        return "site body:" + str(self.body)
+        repr_str = 'download pages:\n'
+        for k, v in self.download_pages.iteritems():
+            repr_str += '\t%s: %s\n' % (k,v)
+
+        repr_str = 'links to files:\n'
+        for k, v in self.links_to_files.iteritems():
+            repr_str += '\t%s: %s\n' % (k,v)
+        return repr_str
+
 
 class SoftDownloader:
     def __init__(self, url, save_dir = '.'):
@@ -85,7 +135,19 @@ class SoftDownloader:
         pass
 
         
-if __name__ == '__main__':
-    parser = LinksCollector()
-    parser.feed(urllib2.urlopen('http://www.filehippo.com/download_google_chrome/4615').read())
-    print(parser)
+if __name__ == '__main__': 
+    # p = LinksCollector()
+    # try:
+    #     # p.feed(urllib2.urlopen('http://www.oldapps.com/google_chrome.php').read())
+    #     with open('page.html', 'rb') as f:
+    #         p.feed(f.read())
+    #     p.close()
+    # except HTMLParseError as e:
+    #     print(e)
+    # print(p)
+
+    old_apps = WebSite('http://www.oldapps.com/google_chrome.php', '?download', 'app=')
+    old_apps.collect_download_pages()
+    old_apps.collect_links_to_files()
+    print(old_apps)
+    old_apps.save_links_to_files()
