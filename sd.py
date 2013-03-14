@@ -43,7 +43,8 @@ class MyLogger():
     def __repr__(self):
         return self
 
-class LinksCollector(HTMLParser):
+class HTMLHrefCollector(HTMLParser):
+    """Parses html page and stores 'href' attribute of <a> tag in dict {'url': name_if_exists} """
     links = dict()
     a_tag_encounered = False
 
@@ -89,9 +90,10 @@ class LinksCollector(HTMLParser):
 
 
 class WebSite:
-    """An abstract class for such types of sites, which provide id and software version correspondence.
-   '/download_google_chrome/13800/': 'Google Chrome 24.0.1312.27 Beta'
-   '/download_google_chrome/14397/': 'Google Chrome 25.0.1364.97' and so on."""
+    """Stores collected links in dictionary. 
+    It goes like this: 1) go to 'url' and collect all links with 'download_page_trait'
+                       2) from the dict of just collected links visit each one and collect all with 'file_link_trait'  """
+
     links_to_files = dict()
 
     def __init__(self, url, download_page_trait, file_link_trait):
@@ -100,7 +102,7 @@ class WebSite:
         self.file_link_trait = file_link_trait
 
     def collect_links_by_trait(self, url, trait):
-        parser = LinksCollector()
+        parser = HTMLHrefCollector()
         try:
             parser.feed(urllib2.urlopen(url).read())
             parser.close()
@@ -133,6 +135,7 @@ class WebSite:
 
 
 class SoftDownloader:
+    """Downloads files using links, that 'site' object has collected """
     DATA_CHUNK_SIZE = 2**19             # 512 KB
 
     def __init__(self, site, save_dir = '.'):
@@ -167,10 +170,10 @@ class SoftDownloader:
                             f.write(data)
                     except Exception, e:
                         print(e)
-            self.logger.Log('downloaded ' + filename + ' (' + url + ')')
+            self.logger.Log('downloading ' + filename + ' (' + url + ')')
 
     def __repr__(self):
-        return __name__
+        return self
 
 
 if __name__ == '__main__':
