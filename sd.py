@@ -21,7 +21,8 @@ class MyLogger():
     LOGGINING_ENABLE = True
 
     def __init__(self, logname = "log.txt"):
-        self.LOG_NAME = os.path.dirname(__file__) + os.sep + logname
+        # self.LOG_NAME = os.path.dirname(__file__) + os.sep + logname
+        self.LOG_NAME = os.path.abspath(os.getcwd()) + os.sep + logname
         if os.path.exists(self.LOG_NAME):
             shutil.move(self.LOG_NAME, self.LOG_NAME + '.old')
         print('logname: %s' % self.LOG_NAME)
@@ -96,7 +97,7 @@ class WebSite:
 
     links_to_files = dict()
 
-    def __init__(self, url, download_page_trait, file_link_trait):
+    def __init__(self, url, download_page_trait = '?download', file_link_trait = 'app='):
         self.start_url = url
         self.download_page_trait = download_page_trait
         self.file_link_trait = file_link_trait
@@ -177,19 +178,19 @@ class SoftDownloader:
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 5:
-        print('usage: sd.py dir_name url 1st_trait 2nd_trait ')
-        print('for example: sd.py chrome http://www.oldapps.com/google_chrome.php ?download app=')
+    if len(sys.argv) < 3:
+        print('usage: sd.py dir_name url')
+        print('for example: sd.py chrome http://www.oldapps.com/google_chrome.php')
         sys.exit(1)
 
-    target_dir, url, trait1, trait2 = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+    target_dir, url = sys.argv[1], sys.argv[2]
 
     if not os.path.exists(target_dir):
         os.mkdir(target_dir)
     os.chdir(target_dir)
 
     # old_apps = WebSite('http://www.oldapps.com/google_chrome.php', '?download', 'app=')
-    old_apps = WebSite(url, trait1, trait2)
+    old_apps = WebSite(url)
     old_apps.collect_links_to_files()
     old_apps.dump_links()
 
