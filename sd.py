@@ -105,7 +105,7 @@ class WebSite:
             parser.feed(urllib2.urlopen(url).read())
             parser.close()
         except Exception as ex:
-            print(ex)
+            print('in ', url, ':', ex)
         
         all_links = parser.get_links_dict()
         collected = dict()
@@ -119,7 +119,7 @@ class WebSite:
         for url, name in download_pages.iteritems():
             self.links_to_files.update(self.collect_links_by_trait(url, self.file_link_trait))
 
-    def dump_links_to_files(self, name = 'file_links.dump'):
+    def dump_links(self, name = 'file_links.dump'):
         pickle.dump(self.links_to_files, open(name, 'wb'))
 
     def get_links_to_files(self):
@@ -151,8 +151,10 @@ class SoftDownloader:
             self.logger.Log(__name__ + 'Nothing to do...')
             return 0
 
-        self.logger.Log(__name__ + ' Start donwloading')
+        self.logger.Log('Start donwloading files')
+        self.logger.Log('link count: ' + str(len(targets)))
         for url, name in targets.iteritems():
+            name = name.translate(None, '/')            # get rid of '/' for Unix systems
             filename = name + '.bin'
             if not os.path.exists(filename):
                 with open(filename, "wb") as f:
@@ -165,6 +167,7 @@ class SoftDownloader:
                             f.write(data)
                     except Exception, e:
                         print(e)
+            self.logger.Log('downloaded ' + filename + ' (' + url + ')')
 
     def __repr__(self):
         return __name__
@@ -185,5 +188,6 @@ if __name__ == '__main__':
     # old_apps = WebSite('http://www.oldapps.com/google_chrome.php', '?download', 'app=')
     old_apps = WebSite(url, trait1, trait2)
     old_apps.collect_links_to_files()
+    old_apps.dump_links()
 
     sd = SoftDownloader(old_apps).download_files()
