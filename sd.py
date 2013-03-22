@@ -154,10 +154,10 @@ class SoftDownloader:
             targets = self.site.get_links_to_files()
 
         if len(targets) == 0:
-            self.logger.Log(__name__ + 'Nothing to do...')
+            self.logger.Log('0 links to files found -> check URL or site availability!')
             return 0
 
-        self.logger.Log('Start donwloading files')
+        self.logger.Log('Start downloading files')
         self.logger.Log('link count: ' + str(len(targets)))
         for url, name in targets.iteritems():
             name = name.translate(None, '/')            # get rid of '/' for Unix systems
@@ -190,6 +190,12 @@ if __name__ == '__main__':
     if not os.path.exists(target_dir):
         os.mkdir(target_dir)
     os.chdir(target_dir)
+
+    if url.find('adobe.com') != -1:
+        adobe = WebSite(url)
+        links = adobe.collect_links_by_trait(url, 'archive.zip')
+        sd = SoftDownloader(adobe).download_files(links)
+        sys.exit(0)
 
     # old_apps = WebSite('http://www.oldapps.com/google_chrome.php', '?download', 'app=')
     old_apps = WebSite(url)
