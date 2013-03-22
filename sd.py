@@ -57,13 +57,14 @@ class HTMLHrefCollector(HTMLParser):
         for x in t:
             if x[0] == key:
                 return x[1]     # url, if x[0] is 'href'
-        return None
+        return ''
 
     def handle_starttag(self, tag, attrs):
         if tag == 'a':
             self.a_tag_encounered = True
-            self.current_a_href = self.get_attr_val(attrs, 'href')
-            self.links.update({self.current_a_href: ''})
+            self.current_a_href = self.get_attr_val(attrs)
+            if self.current_a_href != '':
+                self.links.update({self.current_a_href: 'dummy_start_name'})
             DBG('self.current_a_href', self.current_a_href)
 
     def handle_data(self, data):
@@ -80,8 +81,9 @@ class HTMLHrefCollector(HTMLParser):
         DBG('handle_startendtag: tag: %s', tag)
         DBG('attrs: %s', str(attrs))
         if tag == 'a':
-            href = self.get_attr_val(attrs, 'href')
-            self.links.update({href: ''})
+            href = self.get_attr_val(attrs)
+            if href != '':
+                self.links.update({href: 'dummy_startend_name'})
 
     def __repr__(self):
         info = 'All collected links: \n'
