@@ -97,12 +97,12 @@ class WebSite:
     It goes like this: 1) go to 'url' and collect all links with 'download_page_trait'
                        2) from the dict of just collected links visit each one and collect all with 'file_link_trait'  """
 
-    links_to_files = dict()
-
     def __init__(self, url, download_page_trait = '?download', file_link_trait = 'app='):
         self.start_url = url
         self.download_page_trait = download_page_trait
         self.file_link_trait = file_link_trait
+        self.links_to_files = dict()
+        self.logger = MyLogger()
 
     def collect_links_by_trait(self, url, trait):
         parser = HTMLHrefCollector()
@@ -110,7 +110,7 @@ class WebSite:
             parser.feed(urllib2.urlopen(url).read())
             parser.close()
         except Exception as ex:
-            print('in ', url, ':', ex)
+            self.logger.Log('ERROR while parsing ' + url + ': ' + str(ex))
         
         all_links = parser.get_links_dict()
         collected = dict()
@@ -144,7 +144,7 @@ class SoftDownloader:
     def __init__(self, site, save_dir = '.'):
         self.site = site
         self.save_dir = save_dir
-        self.logger = MyLogger()
+        self.logger = MyLogger() if not site.logger else site.logger
 
     def set_save_dir(new_save_dir):
         self.save_dir = new_save_dir
@@ -177,7 +177,6 @@ class SoftDownloader:
 
     def __repr__(self):
         return self
-
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
