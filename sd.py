@@ -6,6 +6,7 @@ import sys
 import os
 import shutil
 import time
+import string
 from HTMLParser import HTMLParser, HTMLParseError
 
 import urllib2
@@ -161,6 +162,10 @@ class SoftDownloader:
         self.logger.Log('link count: ' + str(len(targets)))
         for url, name in targets.iteritems():
             name = name.translate(None, '/')            # get rid of '/' for Unix systems
+            name = name.translate(None, string.whitespace.translate(None, ' '))    # remove whitespace, except space
+            ns = name.split()       # remove sequences of spaces
+            name = ' '.join(ns)
+
             filename = name + '.bin'
             if not os.path.exists(filename):
                 with open(filename, "wb") as f:
