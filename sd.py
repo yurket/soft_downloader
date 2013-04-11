@@ -17,6 +17,8 @@ DEBUG_MODE = False
 def DBG(m1, arg):
     if DEBUG_MODE:
         print("__DBG: %r : %r" %(m1,arg))
+def DBGS(debug_string, end='\n'):
+    print(debug_string, end=end)
 
 class MyLogger():
     LOGGINING_ENABLE = True
@@ -98,10 +100,9 @@ class WebSite:
     It goes like this: 1) go to 'url' and collect all links with 'download_page_trait'
                        2) from the dict of just collected links visit each one and collect all with 'file_link_trait'  """
 
-    def __init__(self, url, download_page_trait = '?download', file_link_trait = 'app='):
+    def __init__(self, url, url_trait_list, download_page_trait = '?download', file_link_trait = 'app='):
         self.start_url = url
-        self.download_page_trait = download_page_trait
-        self.file_link_trait = file_link_trait
+        self.url_traits = url_trait_list
         self.links_to_files = dict()
         self.logger = MyLogger()
 
@@ -121,9 +122,29 @@ class WebSite:
         return collected
 
     def collect_links_to_files(self):
-        download_pages = self.collect_links_by_trait(self.start_url, self.download_page_trait)
-        for url, name in download_pages.iteritems():
-            self.links_to_files.update(self.collect_links_by_trait(url, self.file_link_trait))
+        args = len(self.url_traits)
+        if args == 0:
+            self.logger.Log('ERROR: There is no traits!')
+            return 1
+        elif args == 1:
+            self.links_to_files.update(self.collect_links_by_trait(self.start_url, self.url_traits[0]))
+        elif args == 2:
+            download_pages = self.collect_links_by_trait(self.start_url, self.url_traits[0])
+            DBGS('-', end='')
+            for url, name in download_pages.iteritems():
+                DBGS('>', end='')
+                self.links_to_files.update(self.collect_links_by_trait(url, self.url_traits[1]))
+        elif args == 3:
+            download_pages = self.collect_links_by_trait(self.start_url, self.url_traits[0])
+            for url, name in download_pages.iteritems():
+                DBGS('-', end='')
+                download_pages2 = self.collect_links_by_trait(url, self.url_traits[1])
+                for url, name in download_pages2:
+                    DBGS('>', end='')
+                    self.links_to_files.update(self.collect_links_by_trait(url, self.url_traits[2]))
+        else:
+            self.logger.Log('ERROR: Level for collecting links is too deep!')
+            return 1
 
     def dump_links(self, name = 'file_links.dump'):
         pickle.dump(self.links_to_files, open(name, 'wb'))
@@ -190,7 +211,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     target_dir, url = sys.argv[1], sys.argv[2]
-
+    traits = sys.argv[3:]
     if not os.path.exists(target_dir):
         os.mkdir(target_dir)
     os.chdir(target_dir)
@@ -202,8 +223,8 @@ if __name__ == '__main__':
         sys.exit(0)
 
     # old_apps = WebSite('http://www.oldapps.com/google_chrome.php', '?download', 'app=')
-    old_apps = WebSite(url)
-    old_apps.collect_links_to_files()
-    old_apps.dump_links()
+    target_site = WebSite(url, traits)
+    target_site.collect_links_to_files()
+    target_site.dump_links()
 
-    sd = SoftDownloader(old_apps).download_files()
+    sd = SoftDownloader(target_site).download_files()
