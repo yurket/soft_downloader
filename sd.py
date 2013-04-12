@@ -166,6 +166,8 @@ class SoftDownloader:
     def __init__(self, site, save_dir = '.'):
         self.site = site
         self.save_dir = save_dir
+        if not os.path.exists(self.save_dir):
+            os.mkdir(self.save_dir)
         self.logger = MyLogger() if not site.logger else site.logger
 
     def set_save_dir(new_save_dir):
@@ -187,7 +189,7 @@ class SoftDownloader:
             ns = name.split()       # remove sequences of spaces
             name = ' '.join(ns)
 
-            filename = name + '.bin'
+            filename = self.save_dir + os.sep + name + '.bin'
             if not os.path.exists(filename):
                 with open(filename, "wb") as f:
                     try:
