@@ -9,6 +9,7 @@ import time
 import string
 import json
 from HTMLParser import HTMLParser, HTMLParseError
+from urlparse import urlparse
 
 import urllib2
 import pickle
@@ -103,9 +104,14 @@ class WebSite:
 
     def __init__(self, url, url_trait_list, download_page_trait = '?download', file_link_trait = 'app='):
         self.start_url = url
+        self.domain = urlparse(self.start_url).scheme + '://' +urlparse(self.start_url).netloc
         self.url_traits = url_trait_list
         self.links_to_files = dict()
         self.logger = MyLogger()
+
+    def absolute_url(self, to_abs):
+        if to_abs.find(self.domain) == -1:      # relative path
+            return self.domain + '/' + to_abs
 
     def collect_links_by_trait(self, url, trait):
         parser = HTMLHrefCollector()
@@ -128,13 +134,17 @@ class WebSite:
             self.logger.Log('ERROR: There is no traits!')
             return 1
         elif args == 1:
-            self.links_to_files.update(self.collect_links_by_trait(self.start_url, self.url_traits[0]))
+            links = self.collect_links_by_trait(self.start_url, self.url_traits[0])
+            abs_links = dict( (self.absolute_url(k),v) for k,v in links.iteritems() )
+            self.links_to_files.update(abs_links)
         elif args == 2:
             download_pages = self.collect_links_by_trait(self.start_url, self.url_traits[0])
             DBGS('-', end='')
             for url, name in download_pages.iteritems():
                 DBGS('>', end='')
-                self.links_to_files.update(self.collect_links_by_trait(url, self.url_traits[1]))
+                links = self.collect_links_by_trait(url, self.url_traits[1])
+                abs_links = dict( (self.absolute_url(k),v) for k,v in links.iteritems() )       # dict comprehension for poor ones =(
+                self.links_to_files.update(abs_links)
         elif args == 3:
             download_pages = self.collect_links_by_trait(self.start_url, self.url_traits[0])
             for url, name in download_pages.iteritems():
@@ -142,7 +152,9 @@ class WebSite:
                 download_pages2 = self.collect_links_by_trait(url, self.url_traits[1])
                 for url, name in download_pages2:
                     DBGS('>', end='')
-                    self.links_to_files.update(self.collect_links_by_trait(url, self.url_traits[2]))
+                    links = self.collect_links_by_trait(url, self.url_traits[2])
+                    abs_links = dict( (self.absolute_url(k),v) for k,v in links.iteritems() )
+                    self.links_to_files.update(abs_links)
         else:
             self.logger.Log('ERROR: Level for collecting links is too deep!')
             return 1
