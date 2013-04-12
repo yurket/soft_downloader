@@ -7,6 +7,7 @@ import os
 import shutil
 import time
 import string
+import json
 from HTMLParser import HTMLParser, HTMLParseError
 
 import urllib2
@@ -206,27 +207,32 @@ class SoftDownloader:
     def __repr__(self):
         return self
 
+class Controller:
+    """Loads json db with urls and arguments. After collects links and downloads files for every entry"""
+    def __init__(self, config_filename):
+        try:
+            with open(config_filename, 'rb') as db:
+                self.sites = json.load(db)
+        except Exception as ex:
+            print(ex)               # log instead
+
+    def process_entreis(self):
+        for entry in self.sites:
+                target_site = WebSite(entry['url'], entry['traits'])
+                target_site.collect_links_to_files()
+                target_site.dump_links()
+
+                sd = SoftDownloader(target_site, entry['dst_folder']).download_files()
+
+    def __repr__(self):
+        return self
+
+
 if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        print('usage: sd.py dir_name url')
-        print('for example: sd.py chrome http://www.oldapps.com/google_chrome.php')
+    if len(sys.argv) < 2:
+        print('usage: sd.py db_path')
         sys.exit(1)
 
-    target_dir, url = sys.argv[1], sys.argv[2]
-    traits = sys.argv[3:]
-    if not os.path.exists(target_dir):
-        os.mkdir(target_dir)
-    os.chdir(target_dir)
-
-    if url.find('adobe.com') != -1:
-        adobe = WebSite(url)
-        links = adobe.collect_links_by_trait(url, 'archive.zip')
-        sd = SoftDownloader(adobe).download_files(links)
-        sys.exit(0)
-
-    # old_apps = WebSite('http://www.oldapps.com/google_chrome.php', '?download', 'app=')
-    target_site = WebSite(url, traits)
-    target_site.collect_links_to_files()
-    target_site.dump_links()
-
-    sd = SoftDownloader(target_site).download_files()
+    db_filename = sys.argv[1]
+    c = Controller(db_filename)
+    c.process_entreis()
