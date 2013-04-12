@@ -1,0 +1,13 @@
+[
+    {
+        "url": "http://www.powergramo.com/download%20skype.htm",
+        "dst_folder": "skype_test",
+        "traits": [".exe"]
+    },
+
+    {
+        "url": "http://www.oldapps.com/cpuz.php",
+        "dst_folder": "cpuz_test",
+        "traits": ["?download", "app="]
+    }
+]
