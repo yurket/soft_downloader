@@ -192,6 +192,7 @@ class SoftDownloader:
 
             filename = self.save_dir + os.sep + name + '.bin'
             if not os.path.exists(filename):
+                self.logger.Log('downloading ' + filename + ' (' + url + ')')
                 with open(filename, "wb") as f:
                     try:
                         reply = urllib2.urlopen(url)
@@ -200,9 +201,10 @@ class SoftDownloader:
                             if data == '':
                                 break
                             f.write(data)
+                            print('.', end='')
+                        print()
                     except Exception, e:
                         print(e)
-            self.logger.Log('downloading ' + filename + ' (' + url + ')')
 
     def __repr__(self):
         return self
