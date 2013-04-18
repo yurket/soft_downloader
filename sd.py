@@ -198,6 +198,8 @@ class SoftDownloader:
         self.logger.Log('Start downloading files')
         self.logger.Log('link count: ' + str(len(targets)))
         for url, name in targets.iteritems():
+            if url == None:                             # empty link (was removed from site)
+                continue
             name = name.translate(None, '/')            # get rid of '/' for Unix systems
             name = name.translate(None, string.whitespace.translate(None, ' '))    # remove whitespace, except space
             ns = name.split()       # remove sequences of spaces
