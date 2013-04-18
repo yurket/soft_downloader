@@ -112,6 +112,7 @@ class WebSite:
     def absolute_url(self, to_abs):
         if to_abs.find(self.domain) == -1:      # relative path
             return self.domain + '/' + to_abs
+        return to_abs
 
     def collect_links_by_trait(self, url, trait):
         parser = HTMLHrefCollector()
