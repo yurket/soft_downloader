@@ -73,7 +73,7 @@ class HTMLHrefCollector(HTMLParser):
             DBG('self.current_a_href', self.current_a_href)
 
     def handle_data(self, data):
-        DBG('data', data)
+        # DBG('data', data)
         if self.a_tag_encounered:
             self.links.update({self.current_a_href: data})
             DBG('\t updating with data %s', data)
@@ -83,8 +83,8 @@ class HTMLHrefCollector(HTMLParser):
             self.a_tag_encounered = False
 
     def handle_startendtag(self, tag, attrs):
-        DBG('handle_startendtag: tag: %s', tag)
-        DBG('attrs: %s', str(attrs))
+        # DBG('handle_startendtag: tag: %s', tag)
+        # DBG('attrs: %s', str(attrs))
         if tag == 'a':
             href = self.get_attr_val(attrs)
             if href != '':
@@ -124,6 +124,7 @@ class WebSite:
             self.logger.Log('ERROR while parsing ' + url + ': ' + str(ex))
         
         all_links = parser.get_links_dict()
+
         collected = dict()
         for k,v in all_links.iteritems():
             if k.find(trait) != -1:
