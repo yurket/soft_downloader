@@ -49,10 +49,12 @@ class MyLogger():
     def __repr__(self):
         return self
 
-class HTMLHrefCollector(HTMLParser):
+class HTMLHrefCollector(HTMLParser, object):
     """Parses html page and stores 'href' attribute of <a> tag in dict {'url': name_if_exists} """
-    links = dict()
-    a_tag_encounered = False
+    def __init__(self):
+        super(HTMLHrefCollector, self).__init__()
+        self.links = dict()
+        self.a_tag_encounered = False
 
     def get_links_dict(self):
         return self.links
