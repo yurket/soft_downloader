@@ -77,6 +77,8 @@ class HTMLHrefCollector(HTMLParser, object):
     def handle_data(self, data):
         # DBG('data', data)
         if self.a_tag_encounered:
+            if data.lower() == 'click here':
+                data = self.current_a_href.split('/')[-1]
             self.links.update({self.current_a_href: data})
             DBG('\t updating with data %s', data)
 
