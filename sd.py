@@ -106,7 +106,8 @@ class WebSite:
 
     def __init__(self, url, url_trait_list, download_page_trait = '?download', file_link_trait = 'app='):
         self.start_url = url
-        self.domain = urlparse(self.start_url).scheme + '://' +urlparse(self.start_url).netloc
+        self.url_scheme = urlparse(self.start_url).scheme
+        self.domain = urlparse(self.start_url).netloc.replace('www.', '')
         self.url_traits = url_trait_list
         self.links_to_files = dict()
         self.logger = MyLogger()
@@ -114,7 +115,7 @@ class WebSite:
 
     def absolute_url(self, to_abs):
         if to_abs.find(self.domain) == -1:      # relative path
-            return self.domain + '/' + to_abs
+            return self.url_scheme + '://' + self.domain + '/' + to_abs
         return to_abs
 
     def collect_links_by_trait(self, url, trait):
@@ -144,18 +145,24 @@ class WebSite:
             self.links_to_files.update(abs_links)
         elif args == 2:
             download_pages = self.collect_links_by_trait(self.start_url, self.url_traits[0])
+            abs_download_pages = dict( (self.absolute_url(k),v) for k,v in download_pages.iteritems() )
+            del download_pages
             DBGS('-', end='')
-            for url, name in download_pages.iteritems():
+            for url, name in abs_download_pages.iteritems():
                 DBGS('>', end='')
                 links = self.collect_links_by_trait(url, self.url_traits[1])
                 abs_links = dict( (self.absolute_url(k),v) for k,v in links.iteritems() )       # dict comprehension for poor ones =(
                 self.links_to_files.update(abs_links)
         elif args == 3:
             download_pages = self.collect_links_by_trait(self.start_url, self.url_traits[0])
-            for url, name in download_pages.iteritems():
+            abs_download_pages = dict( (self.absolute_url(k),v) for k,v in download_pages.iteritems() )
+            del download_pages
+            for url, name in abs_download_pages.iteritems():
                 DBGS('-', end='')
                 download_pages2 = self.collect_links_by_trait(url, self.url_traits[1])
-                for url, name in download_pages2:
+                abs_download_pages2 = dict( (self.absolute_url(k),v) for k,v in download_pages2.iteritems() )
+                del download_pages2
+                for url, name in abs_download_pages2:
                     DBGS('>', end='')
                     links = self.collect_links_by_trait(url, self.url_traits[2])
                     abs_links = dict( (self.absolute_url(k),v) for k,v in links.iteritems() )
