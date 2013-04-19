@@ -108,6 +108,7 @@ class WebSite:
         self.url_traits = url_trait_list
         self.links_to_files = dict()
         self.logger = MyLogger()
+        self.logger.Log('start processing %s' % url)
 
     def absolute_url(self, to_abs):
         if to_abs.find(self.domain) == -1:      # relative path
@@ -195,7 +196,7 @@ class SoftDownloader:
             self.logger.Log('0 links to files found -> check URL or site availability!')
             return 0
 
-        self.logger.Log('Start downloading files')
+        self.logger.Log('Start downloading files into %s' % self.save_dir)
         self.logger.Log('link count: ' + str(len(targets)))
         for url, name in targets.iteritems():
             if url == None:                             # empty link (was removed from site)
