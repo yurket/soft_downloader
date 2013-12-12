@@ -238,7 +238,10 @@ class SoftDownloader:
         return self
 
 class Controller:
-    """Loads json db with urls and arguments. After collects links and downloads files for every entry"""
+    """
+    Loads json db with urls and arguments.
+    After collects links and downloads files for every entry
+    """
     def __init__(self, config_filename):
         try:
             with open(config_filename, 'rb') as db:
@@ -246,13 +249,14 @@ class Controller:
         except Exception as ex:
             print(ex)               # log instead
 
-    def process_entreis(self):
+    def process_entries(self):
         for entry in self.sites:
-                target_site = WebSite(entry['url'], entry['traits'])
-                target_site.collect_links_to_files()
-                target_site.dump_links()
+            target_site = WebSite(entry['url'], entry['traits'])
+            target_site.collect_links_to_files()
+            target_site.dump_links()
 
-                sd = SoftDownloader(target_site, entry['dst_folder']).download_files()
+            sd = SoftDownloader(target_site, entry['dst_folder'])
+            sd.download_files()
 
     def __repr__(self):
         return self
@@ -265,4 +269,5 @@ if __name__ == '__main__':
 
     db_filename = sys.argv[1]
     c = Controller(db_filename)
-    c.process_entreis()
+    c.process_entries()
+    logging.info('[FINISHED]')
