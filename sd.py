@@ -2,10 +2,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import logging
 import sys
 import os
-import shutil
-import time
 import string
 import json
 from HTMLParser import HTMLParser, HTMLParseError
@@ -13,41 +12,6 @@ from urlparse import urlparse
 
 import urllib2
 import pickle
-
-DEBUG_MODE = False
-
-def DBG(m1, arg):
-    if DEBUG_MODE:
-        print("__DBG: %r : %r" %(m1,arg))
-def DBGS(debug_string, end='\n'):
-    print(debug_string, end=end)
-
-class MyLogger():
-    LOGGINING_ENABLE = True
-
-    def __init__(self, logname = "log.txt"):
-        # self.LOG_NAME = os.path.dirname(__file__) + os.sep + logname
-        self.LOG_NAME = os.path.abspath(os.getcwd()) + os.sep + logname
-        if os.path.exists(self.LOG_NAME):
-            shutil.move(self.LOG_NAME, self.LOG_NAME + '.old')
-        print('logname: %s' % self.LOG_NAME)
-
-    def Log(self, msg):
-        if self.LOGGINING_ENABLE:
-            msg = str(time.strftime("%H:%M:%S")) + ' - ' + msg
-
-            print(msg)
-            with open(self.LOG_NAME, 'ab') as f:
-                f.write(msg + '\n')
-                f.flush()
-
-    def pause_logging(self):
-        self.LOGGINING_ENABLE = False
-    def resume_logging(self):
-        self.LOGGINING_ENABLE = True
-
-    def __repr__(self):
-        return self
 
 class HTMLHrefCollector(HTMLParser, object):
     """Parses html page and stores 'href' attribute of <a> tag in dict {'url': name_if_exists} """
@@ -72,23 +36,22 @@ class HTMLHrefCollector(HTMLParser, object):
             self.current_a_href = self.get_attr_val(attrs)
             if self.current_a_href != '':
                 self.links.update({self.current_a_href: 'dummy_start_name'})
-            DBG('self.current_a_href', self.current_a_href)
+
 
     def handle_data(self, data):
-        # DBG('data', data)
         if self.a_tag_encounered:
             if data.lower() == 'click here':
                 data = self.current_a_href.split('/')[-1]
             self.links.update({self.current_a_href: data})
-            DBG('\t updating with data %s', data)
+            logging.debug('\t updating with data %s', data)
 
     def handle_endtag(self, tag):
         if tag == 'a':
             self.a_tag_encounered = False
 
     def handle_startendtag(self, tag, attrs):
-        # DBG('handle_startendtag: tag: %s', tag)
-        # DBG('attrs: %s', str(attrs))
+        logging.debug('handle_startendtag: tag: %s', tag)
+        logging.debug('attrs: %s', str(attrs))
         if tag == 'a':
             href = self.get_attr_val(attrs)
             if href != '':
@@ -112,8 +75,7 @@ class WebSite:
         self.domain = urlparse(self.start_url).netloc.replace('www.', '')
         self.url_traits = url_trait_list
         self.links_to_files = dict()
-        self.logger = MyLogger()
-        self.logger.Log('start processing %s' % url)
+        logging.info('start processing %s', url)
 
     def absolute_url(self, to_abs):
         if to_abs.find(self.domain) == -1:      # relative path
@@ -126,7 +88,7 @@ class WebSite:
             parser.feed(urllib2.urlopen(url).read())
             parser.close()
         except Exception as ex:
-            self.logger.Log('ERROR while parsing ' + url + ': ' + str(ex))
+            logging.error('while parsing %s: %s', url, str(ex))
         
         all_links = parser.get_links_dict()
 
@@ -139,7 +101,7 @@ class WebSite:
     def collect_links_to_files(self):
         args = len(self.url_traits)
         if args == 0:
-            self.logger.Log('ERROR: There is no traits!')
+            logging.error('There is no traits!')
             return 1
         elif args == 1:
             links = self.collect_links_by_trait(self.start_url, self.url_traits[0])
@@ -149,9 +111,7 @@ class WebSite:
             download_pages = self.collect_links_by_trait(self.start_url, self.url_traits[0])
             abs_download_pages = dict( (self.absolute_url(k),v) for k,v in download_pages.iteritems() )
             del download_pages
-            DBGS('-', end='')
             for url, name in abs_download_pages.iteritems():
-                DBGS('>', end='')
                 links = self.collect_links_by_trait(url, self.url_traits[1])
                 abs_links = dict( (self.absolute_url(k),v) for k,v in links.iteritems() )       # dict comprehension for poor ones =(
                 self.links_to_files.update(abs_links)
@@ -160,17 +120,15 @@ class WebSite:
             abs_download_pages = dict( (self.absolute_url(k),v) for k,v in download_pages.iteritems() )
             del download_pages
             for url, name in abs_download_pages.iteritems():
-                DBGS('-', end='')
                 download_pages2 = self.collect_links_by_trait(url, self.url_traits[1])
                 abs_download_pages2 = dict( (self.absolute_url(k),v) for k,v in download_pages2.iteritems() )
                 del download_pages2
                 for url, name in abs_download_pages2:
-                    DBGS('>', end='')
                     links = self.collect_links_by_trait(url, self.url_traits[2])
                     abs_links = dict( (self.absolute_url(k),v) for k,v in links.iteritems() )
                     self.links_to_files.update(abs_links)
         else:
-            self.logger.Log('ERROR: Level for collecting links is too deep!')
+            logging.error('Level for collecting links is too deep!')
             return 1
 
     def dump_links(self, name = 'file_links.dump'):
@@ -195,9 +153,8 @@ class SoftDownloader:
         self.save_dir = save_dir
         if not os.path.exists(self.save_dir):
             os.mkdir(self.save_dir)
-        self.logger = MyLogger() if not site.logger else site.logger
 
-    def set_save_dir(new_save_dir):
+    def set_save_dir(self, new_save_dir):
         self.save_dir = new_save_dir
 
     def download_files(self, targets = None):
@@ -205,11 +162,11 @@ class SoftDownloader:
             targets = self.site.get_links_to_files()
 
         if len(targets) == 0:
-            self.logger.Log('0 links to files found -> check URL or site availability!')
+            logging.warn('0 links to files found -> check URL or site availability!')
             return 0
 
-        self.logger.Log('Start downloading files into %s' % self.save_dir)
-        self.logger.Log('link count: ' + str(len(targets)))
+        logging.info('Start downloading files into %s', str(self.save_dir))
+        logging.info('link count: %d ', len(targets))
         for url, name in targets.iteritems():
             if url == None:                             # empty link (was removed from site)
                 continue
@@ -220,7 +177,7 @@ class SoftDownloader:
 
             filename = self.save_dir + os.sep + name + '.bin'
             if not os.path.exists(filename):
-                self.logger.Log('downloading ' + filename + ' (' + url + ')')
+                logging.info('downloading %s from url: %s', filename, url)
                 with open(filename, "wb") as f:
                     try:
                         reply = urllib2.urlopen(url)
@@ -263,6 +220,9 @@ class Controller:
 
 
 if __name__ == '__main__':
+    logging.basicConfig(filename='sd.log', level=logging.INFO,\
+                        format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    logging.info('[STARTED]')
     if len(sys.argv) < 2:
         print('usage: sd.py db_path')
         sys.exit(1)
